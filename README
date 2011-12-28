@@ -1,5 +1,3 @@
-To compile uid-reader.c, cd into src/ and do:
-
-  > cc uid-reader.c -o uid-reader -lnfc
-
+To compile uid-reader.c, cd into src/ and run make.
+The makefile was based on this: http://mrbook.org/tutorials/make/
 

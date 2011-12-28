@@ -1,3 +1,6 @@
+// Source: http://code.google.com/p/libnfc/source/browse/trunk/examples/doc/quick_start_example1.c
+// Added a few cosmetic edits.
+
 #ifdef HAVE_CONFIG_H
 #  include "config.h"
 #endif // HAVE_CONFIG_H
@@ -30,7 +33,7 @@ main (int argc, const char *argv[])
   pnd = nfc_connect (NULL);
 
   if (pnd == NULL) {
-    fprintf (stderr, "Unable to connect to NFC device.");
+    fprintf (stderr, "Unable to connect to NFC device.\n");
     return EXIT_FAILURE;
   }
   // Set connected NFC device to initiator mode
