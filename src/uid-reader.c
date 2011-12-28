@@ -60,3 +60,4 @@ main (int argc, const char *argv[])
   nfc_disconnect (pnd);
   return EXIT_SUCCESS;
 }
+
