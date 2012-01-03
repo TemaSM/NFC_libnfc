@@ -158,12 +158,17 @@ readBlocks(nfc_device_t * reader,
   // commandBuffer[idx++] = numBytes;
 
   // Send the command with no timeout
+  printf(">>>>>>>>>>>>>>>>>>>>>\n");
+  printf("Cmd: ");
   print_hex(commandBuffer, commandBufferSize);
-  printf ("Error before transceive: %d\n", reader->iLastError);
   bool ret = nfc_initiator_transceive_bytes(reader, commandBuffer, commandBufferSize,
     receiveBuffer, receiveBufferSize, NULL);
+  printf("Res: ");
   print_hex(receiveBuffer, *receiveBufferSize);
-  printf ("Error after transceive: %x\n", reader->iLastError);
+  if (reader->iLastError) {
+    printf ("Error after transceive: %x\n", reader->iLastError);
+  }
+  printf("<<<<<<<<<<<<<<<<<<<<<\n");
 
   return ret;
 }
@@ -194,12 +199,15 @@ writeBlocks(nfc_device_t * reader, const byte_t blockNum,
   memcpy(commandBuffer + idx, data, dataSize);
 
   // Send the command with no timeout
+  printf(">>>>>>>>>>>>>>>>>>>>>\n");
+  printf("Cmd: ");
   print_hex(commandBuffer, commandBufferSize);
-  printf ("Error before transceive: %d\n", reader->iLastError);
   bool ret = nfc_initiator_transceive_bytes(reader, commandBuffer, commandBufferSize,
     receiveBuffer, &receiveBufferSize, NULL);
-  print_hex(receiveBuffer, receiveBufferSize);
-  printf ("Error after transceive: %x\n", reader->iLastError);
+  if (reader->iLastError) {
+    printf ("Error after transceive: %x\n", reader->iLastError);
+  }
+  printf("<<<<<<<<<<<<<<<<<<<<<\n");
 
   return ret;
 }
@@ -273,24 +281,20 @@ main (int argc, const char *argv[])
         print_hex (nt->nti.nai.abtUid, nt->nti.nai.szUidLen);
         continue;
       }
-      printf ("[Read %zu bytes from block %d.]\n", blockDataSize, 0x04);
+      printf ("[Read %zu bytes from block %d.]\n\n\n", blockDataSize, 0x04);
       print_hex (blockData, blockDataSize);
 
       // (4) Write data to tag
       const byte_t writeData[] = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
                                    0x08, 0x09, 0x0A, 0x0b, 0x0C, 0x0D, 0x0E, 0x0F };
-      /*
-      if (!writeBlocks(pnd, 0x04,  writeData, sizeof(writeData))) {
-        printf ("Failed to write blocks into target tag UID: ");
-        print_hex (nt->nti.nai.abtUid, nt->nti.nai.szUidLen);
-        continue;
+      for (size_t i = 0; i < 16; i += 4) {
+        if (!writeBlocks(pnd, 0x04 + i,  writeData + i, sizeof(writeData))) {
+          printf ("Failed to write blocks into target tag UID: ");
+          print_hex (nt->nti.nai.abtUid, nt->nti.nai.szUidLen);
+          continue;
+        }
       }
-      */
-      writeBlocks(pnd, 0x04, writeData, 16);
-      writeBlocks(pnd, 0x05, writeData + 4, 16);
-      writeBlocks(pnd, 0x06, writeData + 8, 16);
-      writeBlocks(pnd, 0x07, writeData + 12, 16);
-      printf ("[Wrote %d bytes to block %d.]\n", 16, 0x10);
+      printf ("[Wrote %d bytes to block %d.]\n\n\n", 16, 0x10);
 
       // (5) Read data from tag and confirm it was the written data
       memset(blockData, 0, 1024);
@@ -299,7 +303,7 @@ main (int argc, const char *argv[])
         print_hex (nt->nti.nai.abtUid, nt->nti.nai.szUidLen);
         continue;
       }
-      printf ("[Read %zu bytes from block %d.]\n", blockDataSize, 0x04);
+      printf ("[Read %zu bytes from block %d.]\n\n\n", blockDataSize, 0x04);
       print_hex (blockData, blockDataSize);
     }
   }
