@@ -132,14 +132,10 @@ authenticateWithTag(nfc_device_t * reader, const byte_t keyNum, const byte_t blo
   return false;
 }
 
-// Once we have auth'ed the appropriate sector on the target tag, we can
-// read or write to the blocks in that sector.
-//
-// This function reads some bytes from a block on the target tag.
 bool
-readBlocks(nfc_device_t * reader, 
-           const byte_t blockNum, const size_t numBytes,
-           byte_t * receiveBuffer, size_t * receiveBufferSize)
+readBlocksHelper(nfc_device_t * reader, 
+                 const byte_t blockNum, const size_t numBytes,
+                 byte_t * receiveBuffer, size_t * receiveBufferSize)
 {
   // Allocate the command and receive buffers
   size_t byte_t_size = sizeof(byte_t);
@@ -173,11 +169,33 @@ readBlocks(nfc_device_t * reader,
   return ret;
 }
            
-
-// This function writes some bytes to a block on the target tag.
+// Once we have auth'ed the appropriate sector on the target tag, we can
+// read or write to the blocks in that sector.
+//
+// This function reads some bytes from a block on the target tag.
 bool
-writeBlocks(nfc_device_t * reader, const byte_t blockNum,
-            const byte_t * data, const size_t dataSize)
+readBlocks(nfc_device_t * reader, 
+           const byte_t blockNum, const size_t numBytes,
+           byte_t * receiveBuffer, size_t * receiveBufferSize)
+{
+  *receiveBufferSize = 0;
+  size_t blockN = 0;
+  size_t numBytesRead = 0;
+  const size_t bytesPerRead = 16;
+
+  for (size_t i = 0; i < numBytes; i += bytesPerRead) {
+    if (!readBlocksHelper(reader, blockNum + blockN, 0x04, receiveBuffer + i, &numBytesRead)) {
+      return false;
+    }
+    blockN += 4;
+    *receiveBufferSize += numBytesRead;
+  }
+  return true;
+}
+
+bool
+writeBlocksHelper(nfc_device_t * reader, const byte_t blockNum,
+                  const byte_t * data, const size_t dataSize)
 {
   // Allocate the command and receive buffers
   size_t byte_t_size = sizeof(byte_t);
@@ -212,6 +230,20 @@ writeBlocks(nfc_device_t * reader, const byte_t blockNum,
   return ret;
 }
 
+// This function writes some bytes to a block on the target tag.
+bool
+writeBlocks(nfc_device_t * reader, const byte_t blockNum,
+            const byte_t * data, const size_t dataSize)
+{
+  size_t blockN = 0;
+  for (size_t i = 0; i < dataSize; i += 4) {
+    if (!writeBlocksHelper(reader, blockNum + blockN,  data + i, 16)) {
+      return false;
+    }
+    ++blockN;
+  }
+  return true;
+}
 
 int
 main (int argc, const char *argv[])
@@ -276,7 +308,7 @@ main (int argc, const char *argv[])
       byte_t blockData[1024];
       memset(blockData, 0, 1024);
       size_t blockDataSize = 0;
-      if (!readBlocks(pnd, 0x04, 0x10, blockData, &blockDataSize)) {
+      if (!readBlocks(pnd, 0x04, 0x20, blockData, &blockDataSize)) {
         printf ("Failed to read blocks from target tag UID: ");
         print_hex (nt->nti.nai.abtUid, nt->nti.nai.szUidLen);
         continue;
@@ -285,20 +317,24 @@ main (int argc, const char *argv[])
       print_hex (blockData, blockDataSize);
 
       // (4) Write data to tag
-      const byte_t writeData[] = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
-                                   0x08, 0x09, 0x0A, 0x0b, 0x0C, 0x0D, 0x0E, 0x0F };
-      for (size_t i = 0; i < 16; i += 4) {
-        if (!writeBlocks(pnd, 0x04 + i,  writeData + i, sizeof(writeData))) {
-          printf ("Failed to write blocks into target tag UID: ");
-          print_hex (nt->nti.nai.abtUid, nt->nti.nai.szUidLen);
-          continue;
-        }
+      const byte_t writeData[] = {
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+        0x08, 0x09, 0x0A, 0x0b, 0x0C, 0x0D, 0x0E, 0x0F,
+        0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+        0x08, 0x09, 0x0A, 0x0b, 0x0C, 0x0D, 0x0E, 0x0F
+      };
+      const size_t dataSize = sizeof(writeData);
+      const byte_t targetBlock = 0x04;
+      if (!writeBlocks(pnd, targetBlock, writeData, dataSize)) {
+        printf ("Failed to write blocks into target tag UID: ");
+        print_hex (nt->nti.nai.abtUid, nt->nti.nai.szUidLen);
+        continue;
       }
-      printf ("[Wrote %d bytes to block %d.]\n\n\n", 16, 0x10);
+      printf ("[Wrote %zu bytes to block %02x.]\n\n\n", dataSize, targetBlock);
 
       // (5) Read data from tag and confirm it was the written data
       memset(blockData, 0, 1024);
-      if (!readBlocks(pnd, 0x04, 0x10, blockData, &blockDataSize)) {
+      if (!readBlocks(pnd, 0x04, 0x20, blockData, &blockDataSize)) {
         printf ("Failed to read blocks from target tag UID: ");
         print_hex (nt->nti.nai.abtUid, nt->nti.nai.szUidLen);
         continue;
