@@ -4,7 +4,7 @@ LIBS = nfc
 
 CC = gcc
 DEBUG = -g
-CFLAGS = -Wall $(DEBUG) -std=c99 -c 
+CFLAGS = -Wall $(DEBUG) -std=c99 -c
 LFLAGS = -Wall $(DEBUG) -l $(LIBS)
 EXE = uid-reader
 
